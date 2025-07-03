@@ -1,0 +1,50 @@
+{
+  "Lunch": {
+    "food": "Grilled Chicken Breast",
+    "quantity": "250g",
+    "protein": "80g",
+    "fat": "5.5g",
+    "carbs": "0g",
+    "calories": "370 kcal"
+  },
+  "Snack 1": {
+    "food": "Almonds",
+    "quantity": "70.75g",
+    "protein": "15g",
+    "fat": "35.30g",
+    "carbs": "3.75g",
+    "calories": "392 kcal"
+  },
+ "Snack 3": {
+    "food": "Banana",
+    "quantity": "1 medium",
+    "protein": "1g",
+    "fat": "0.4g",
+    "carbs": "27g",
+    "calories": "105 kcal"
+  },
+ "Snack 4": {
+    "food": "Banana",
+    "quantity": "1 medium",
+    "protein": "1g",
+    "fat": "0.4g",
+    "carbs": "27g",
+    "calories": "105 kcal"
+  },
+  "Dinner": {
+    "food": "Tuna & Rice with Olive Oil",
+    "tuna": "150g",
+    "rice": "350g",
+    "olive_oil": "30g",
+    "protein": "47.15g",
+    "fat": "32.87g",
+    "carbs": "108.85g",
+    "calories": "891.7 kcal"
+  },
+  "Totals": {
+    "protein": "143.35g",
+    "fat": "74.07g",
+    "carbs": "141.5g",
+    "calories": "1872.7 kcal"
+  }
+}
