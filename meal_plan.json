@@ -1,50 +1,21 @@
 {
-  "Lunch": {
-    "food": "Grilled Chicken Breast",
-    "quantity": "250g",
-    "protein": "80g",
-    "fat": "5.5g",
-    "carbs": "0g",
-    "calories": "370 kcal"
-  },
-  "Snack 1": {
-    "food": "Almonds",
-    "quantity": "70.75g",
-    "protein": "15g",
-    "fat": "35.30g",
-    "carbs": "3.75g",
-    "calories": "392 kcal"
-  },
- "Snack 3": {
-    "food": "Banana",
-    "quantity": "1 medium",
-    "protein": "1g",
-    "fat": "0.4g",
-    "carbs": "27g",
-    "calories": "105 kcal"
-  },
- "Snack 4": {
-    "food": "Banana",
-    "quantity": "1 medium",
-    "protein": "1g",
-    "fat": "0.4g",
-    "carbs": "27g",
-    "calories": "105 kcal"
-  },
-  "Dinner": {
-    "food": "Tuna & Rice with Olive Oil",
-    "tuna": "150g",
-    "rice": "350g",
-    "olive_oil": "30g",
-    "protein": "47.15g",
-    "fat": "32.87g",
-    "carbs": "108.85g",
-    "calories": "891.7 kcal"
-  },
-  "Totals": {
-    "protein": "143.35g",
-    "fat": "74.07g",
-    "carbs": "141.5g",
-    "calories": "1872.7 kcal"
+  "meal_plan": {
+    "Morning": {
+      "description": "2 Coffees with semi-skimmed Milk and 1 tbsp peanut butter",
+      "calories": 132
+    },
+    "Lunch": {
+      "description": "Big Salad with 200g Grilled Chicken Breast, 100g Lettuce, 50g Cherry Tomatoes, 50g Cucumber, 20g Olive Oil, 30g Avocado, Vinegar",
+      "calories": 562
+    },
+    "Afternoon Snack": {
+      "description": "Apple and 30g Almonds",
+      "calories": 256
+    },
+    "Dinner": {
+      "description": "150g Baked Salmon, 120g Quinoa, 100g Steamed Broccoli, 1 tbsp Olive Oil, 50g wheat bread",
+      "calories": 993
+    },
+    "Total Calories": 1943
   }
 }

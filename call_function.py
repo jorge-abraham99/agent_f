@@ -27,12 +27,19 @@ def call_function(function_call_part, verbose=False):
         )
     else:
         print(f" - Calling function: {function_call_part.name}")
+
+    # Wrapper to handle parameter renaming for write_file_content
+    def write_file_content_wrapper(**kwargs):
+        if "filename" in kwargs:
+            kwargs["file_path"] = kwargs.pop("filename")
+        return write_file_content(**kwargs)
+
     function_map = {
         "fuzzy_search_rows": fuzzy_search_rows,
         "calculate": calculate,
         "get_file_content": get_file_content,
         "get_files_info": get_files_info,
-        "write_file_content": write_file_content
+        "write_file_content": write_file_content_wrapper,
     }
     functions_requiring_wd = [
         "get_file_content",
