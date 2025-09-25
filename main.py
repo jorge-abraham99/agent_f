@@ -52,7 +52,7 @@ def main():
 
 def generate_content(client, messages, verbose):
     response = client.models.generate_content(
-        model="gemini-2.0-flash",
+        model="gemini-2.5-flash",
         contents=messages,
         config=types.GenerateContentConfig(
             tools=[available_functions], system_instruction=system_prompt
@@ -86,13 +86,6 @@ def generate_content(client, messages, verbose):
         raise Exception("no function responses generated, exiting.")
 
     messages.append(types.Content(role="tool", parts=function_responses))
-
-
-
-
-
-
-
 
 if __name__ == "__main__":
     main()

@@ -1,0 +1,10 @@
+{
+  "gender": "female",
+  "height": 165.0,
+  "age": 28,
+  "weight": 60.0,
+  "workouts_per_week": 3,
+  "goal": "Fat Loss",
+  "diet": "vegetarian",
+  "additional_considerations": "I prefer low-sodium options and I dont like spicy food"
+}

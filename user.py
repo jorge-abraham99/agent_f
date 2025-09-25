@@ -86,9 +86,9 @@ class user:
         return remaining_calories / 4
 
 
-Miguel = user("male",180,26,86,"moderately active")
+Miguel = user("male",180,32,79,"moderately active")
 print("BMR:", Miguel.get_bmr())
-print("Goal-based BMR (Build Muscle):", Miguel.goal_based_bmr("Lean Gains"))
-print("Protein Intake (Build Muscle):", Miguel.protein_intake("Lean Gains"))
-print("Fat Intake (Build Muscle):", Miguel.fat_intake("Lean Gains"))
-print("Carbs Intake (Build Muscle):", Miguel.carbs_intake("Lean Gains"))
+print("Goal-based BMR (Build Muscle):", Miguel.goal_based_bmr("Fat Loss"))
+print("Protein Intake (Build Muscle):", Miguel.protein_intake("Fat Loss"))
+print("Fat Intake (Build Muscle):", Miguel.fat_intake("Fat Loss"))
+print("Carbs Intake (Build Muscle):", Miguel.carbs_intake("Fat Loss"))

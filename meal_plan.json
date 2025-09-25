@@ -1,21 +1,107 @@
+
 {
-  "meal_plan": {
-    "Morning": {
-      "description": "2 Coffees with semi-skimmed Milk and 1 tbsp peanut butter",
-      "calories": 132
-    },
-    "Lunch": {
-      "description": "Big Salad with 200g Grilled Chicken Breast, 100g Lettuce, 50g Cherry Tomatoes, 50g Cucumber, 20g Olive Oil, 30g Avocado, Vinegar",
-      "calories": 562
-    },
-    "Afternoon Snack": {
-      "description": "Apple and 30g Almonds",
-      "calories": 256
-    },
-    "Dinner": {
-      "description": "150g Baked Salmon, 120g Quinoa, 100g Steamed Broccoli, 1 tbsp Olive Oil, 50g wheat bread",
-      "calories": 993
-    },
-    "Total Calories": 1943
-  }
+    "meal_plan": {
+        "distribution": {
+            "breakfast_percent": "20",
+            "lunch_percent": "32.5",
+            "dinner_percent": "32.5",
+            "snacks_percent": "15",
+            "custom_notes": "Standard distribution applied."
+        },
+        "Breakfast": {
+            "target_calories": "454.2",
+            "recipe_name": "Shredded Chicken Congee | Mob",
+            "servings": "0.93",
+            "nutritional_info_per_serving": {
+                "calories": "488kcal",
+                "protein": "34g",
+                "fat": "9g",
+                "carbohydrates": "65g",
+                "sodium": "1240mg"
+            },
+            "total_nutrition": {
+                "calories": "453.84",
+                "protein": "31.62",
+                "fat": "8.37",
+                "carbohydrates": "60.45",
+                "sodium": "1153.2"
+            }
+        },
+        "Lunch": {
+            "target_calories": "738.08",
+            "recipe_name": "Chicken & Chilli Stir Fry Recipe | Mob",
+            "servings": "1.20",
+            "nutritional_info_per_serving": {
+                "calories": "615kcal",
+                "protein": "43g",
+                "fat": "21g",
+                "carbohydrates": "61g",
+                "sodium": "1070mg"
+            },
+            "total_nutrition": {
+                "calories": "738.00",
+                "protein": "51.60",
+                "fat": "25.20",
+                "carbohydrates": "73.20",
+                "sodium": "1284.00"
+            }
+        },
+        "Dinner": {
+            "target_calories": "738.08",
+            "recipe_name": "Thai Green Chicken Curry Recipe | Mob",
+            "servings": "1.04",
+            "nutritional_info_per_serving": {
+                "calories": "710kcal",
+                "protein": "38g",
+                "fat": "32g",
+                "carbohydrates": "65g",
+                "sodium": "800mg"
+            },
+            "total_nutrition": {
+                "calories": "738.40",
+                "protein": "39.52",
+                "fat": "33.28",
+                "carbohydrates": "67.60",
+                "sodium": "832.00"
+            }
+        },
+        "Snacks": {
+            "target_calories": "340.65",
+            "recipe_name": "Apple Crumble Overnight Oats Recipe | Mob",
+            "servings": "0.93",
+            "nutritional_info_per_serving": {
+                "calories": "367kcal",
+                "protein": "16g",
+                "fat": "10g",
+                "carbohydrates": "52g",
+                "sodium": "123mg"
+            },
+            "total_nutrition": {
+                "calories": "341.31",
+                "protein": "14.88",
+                "fat": "9.30",
+                "carbohydrates": "48.36",
+                "sodium": "114.39"
+            }
+        },
+        "Daily Totals": {
+            "total_calories": "2271.55",
+            "total_protein": "137.62",
+            "total_fat": "76.15",
+            "total_carbohydrates": "249.61",
+            "total_sodium": "3383.59"
+        },
+        "User Targets": {
+            "target_calories": "2271",
+            "target_protein": "144.1",
+            "target_fat": "63.1",
+            "target_carbohydrates": "281.7"
+        },
+        "Variance Analysis": {
+            "calories_variance": "+0.02%",
+            "protein_variance": "-4.50%",
+            "fat_variance": "+20.68%",
+            "carbs_variance": "-11.39%"
+        }
+    }
 }

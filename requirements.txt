@@ -1,3 +1,16 @@
+# Web Framework & ASGI Server
+fastapi
+uvicorn
+gunicorn
+
+# Google Generative AI
 google-generativeai
-python-dotenv
+
+# Data Handling & Utilities
 pandas
+python-dotenv
+fuzzywuzzy
+py-expression-eval
+
+# Optional: for faster fuzzy string matching
+python-levenshtein
