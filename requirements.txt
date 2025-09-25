@@ -4,7 +4,7 @@ uvicorn
 gunicorn
 
 # Google Generative AI
-google-generativeai
+google-genai
 
 # Data Handling & Utilities
 pandas
