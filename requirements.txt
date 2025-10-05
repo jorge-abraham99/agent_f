@@ -14,6 +14,7 @@ pandas
 python-dotenv
 fuzzywuzzy
 py-expression-eval
+pydantic[email]
 
 # Optional: for faster fuzzy string matching
 python-levenshtein
