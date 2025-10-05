@@ -6,6 +6,9 @@ gunicorn
 # Google Generative AI
 google-genai
 
+# Database
+supabase
+
 # Data Handling & Utilities
 pandas
 python-dotenv

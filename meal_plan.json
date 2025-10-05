@@ -1,4 +1,3 @@
-
 {
     "meal_plan": {
         "distribution": {
@@ -6,69 +5,69 @@
             "lunch_percent": "32.5",
             "dinner_percent": "32.5",
             "snacks_percent": "15",
-            "custom_notes": "Standard distribution applied."
+            "custom_notes": "Standard distribution applied as per user request."
         },
         "Breakfast": {
-            "target_calories": "454.2",
-            "recipe_name": "Shredded Chicken Congee | Mob",
-            "servings": "0.93",
+            "target_calories": 327.4,
+            "recipe_name": "Veggie Sheet-Pan Breakfast Burritos | Mob",
+            "servings": 0.9145,
             "nutritional_info_per_serving": {
-                "calories": "488kcal",
-                "protein": "34g",
-                "fat": "9g",
-                "carbohydrates": "65g",
-                "sodium": "1240mg"
+                "calories": "358kcal",
+                "protein": "22g",
+                "fat": "15g",
+                "carbohydrates": "32g",
+                "sodium": "460mg"
             },
             "total_nutrition": {
-                "calories": "453.84",
-                "protein": "31.62",
-                "fat": "8.37",
-                "carbohydrates": "60.45",
-                "sodium": "1153.2"
+                "calories": "327.4kcal",
+                "protein": "20.12g",
+                "fat": "13.72g",
+                "carbohydrates": "29.26g",
+                "sodium": "420.67mg"
             }
         },
         "Lunch": {
-            "target_calories": "738.08",
-            "recipe_name": "Chicken & Chilli Stir Fry Recipe | Mob",
-            "servings": "1.20",
+            "target_calories": 532.0,
+            "recipe_name": "Chilli Tofu & Pineapple Rice Bowl | Mob",
+            "servings": 1.0133,
             "nutritional_info_per_serving": {
-                "calories": "615kcal",
-                "protein": "43g",
-                "fat": "21g",
-                "carbohydrates": "61g",
-                "sodium": "1070mg"
+                "calories": "525kcal",
+                "protein": "21g",
+                "fat": "16g",
+                "carbohydrates": "78g",
+                "sodium": "650mg"
             },
             "total_nutrition": {
-                "calories": "738.00",
-                "protein": "51.60",
-                "fat": "25.20",
-                "carbohydrates": "73.20",
-                "sodium": "1284.00"
+                "calories": "532.0kcal",
+                "protein": "21.28g",
+                "fat": "16.21g",
+                "carbohydrates": "79.04g",
+                "sodium": "658.65mg"
             }
         },
         "Dinner": {
-            "target_calories": "738.08",
-            "recipe_name": "Thai Green Chicken Curry Recipe | Mob",
-            "servings": "1.04",
+            "target_calories": 532.0,
+            "recipe_name": "Chickpea Palak Paneer Recipe | Mob",
+            "servings": 0.9141,
             "nutritional_info_per_serving": {
-                "calories": "710kcal",
-                "protein": "38g",
-                "fat": "32g",
-                "carbohydrates": "65g",
-                "sodium": "800mg"
+                "calories": "582kcal",
+                "protein": "26g",
+                "fat": "29g",
+                "carbohydrates": "59g",
+                "sodium": "1020mg"
             },
             "total_nutrition": {
-                "calories": "738.40",
-                "protein": "39.52",
-                "fat": "33.28",
-                "carbohydrates": "67.60",
-                "sodium": "832.00"
+                "calories": "532.0kcal",
+                "protein": "23.77g",
+                "fat": "26.51g",
+                "carbohydrates": "53.93g",
+                "sodium": "932.38mg"
             }
         },
-        "Snacks": {
-            "target_calories": "340.65",
+        "Snack 1": {
+            "target_calories": 245.5,
             "recipe_name": "Apple Crumble Overnight Oats Recipe | Mob",
-            "servings": "0.93",
+            "servings": 0.6689,
             "nutritional_info_per_serving": {
                 "calories": "367kcal",
                 "protein": "16g",
@@ -77,31 +76,31 @@
                 "sodium": "123mg"
             },
             "total_nutrition": {
-                "calories": "341.31",
-                "protein": "14.88",
-                "fat": "9.30",
-                "carbohydrates": "48.36",
-                "sodium": "114.39"
+                "calories": "245.5kcal",
+                "protein": "10.70g",
+                "fat": "6.69g",
+                "carbohydrates": "34.78g",
+                "sodium": "82.27mg"
             }
         },
         "Daily Totals": {
-            "total_calories": "2271.55",
-            "total_protein": "137.62",
-            "total_fat": "76.15",
-            "total_carbohydrates": "249.61",
-            "total_sodium": "3383.59"
+            "total_calories": "1636.9kcal",
+            "total_protein": "75.87g",
+            "total_fat": "63.13g",
+            "total_carbohydrates": "197.01g",
+            "total_sodium": "2093.97mg"
         },
         "User Targets": {
-            "target_calories": "2271",
-            "target_protein": "144.1",
-            "target_fat": "63.1",
-            "target_carbohydrates": "281.7"
+            "target_calories": "1637kcal",
+            "target_protein": "125.2g",
+            "target_fat": "45.5g",
+            "target_carbohydrates": "181.7g"
         },
         "Variance Analysis": {
-            "calories_variance": "+0.02%",
-            "protein_variance": "-4.50%",
-            "fat_variance": "+20.68%",
-            "carbs_variance": "-11.39%"
+            "calories_variance": "-0.01%",
+            "protein_variance": "-39.40%",
+            "fat_variance": "+38.75%",
+            "carbs_variance": "+8.43%"
         }
     }
 }
