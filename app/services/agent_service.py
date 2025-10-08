@@ -11,6 +11,7 @@ from app.tools.call_function import call_function
 # Import the actual functions we will be describing and calling
 from app.tools.database_tools import search_recipes, save_meal_plan, get_current_meal_plan
 from app.tools.calculator import calculate
+from app.models.schemas import MealPlanRequest
 
 # --- THIS IS THE CORRECTED TOOL DEFINITION BLOCK ---
 # We manually define the schema for each function the model can call.
@@ -231,3 +232,56 @@ def generate_meal_plan_with_agent(prompt: str) -> str:
     print("!!! Maximum iterations reached. Stopping. !!!")
     raise HTTPException(status_code=508, detail="Maximum iterations reached, agent could not complete the request.")
 
+def convert_questionnaire_to_meal_plan_request(questionnaire: dict) -> MealPlanRequest:
+    """
+    Convert questionnaire data from metadata into MealPlanRequest format.
+    """
+    # Map frontend goal values to backend expected values
+    goal_map = {
+        'lose': 'Fat Loss',
+        'build': 'Build Muscle',
+        'maintain': 'General Health / Maintenance',
+    }
+    
+    # Build additional considerations string
+    additional_considerations_parts = []
+    
+    if questionnaire.get('foodsToAvoid'):
+        foods = ', '.join(questionnaire['foodsToAvoid'])
+        additional_considerations_parts.append(f"Avoid: {foods}")
+    
+    if questionnaire.get('cuisinePreferences'):
+        cuisines = ', '.join(questionnaire['cuisinePreferences'])
+        additional_considerations_parts.append(f"Prefers {cuisines} cuisine")
+    
+    if questionnaire.get('mealPreferences'):
+        meals = ', '.join(questionnaire['mealPreferences'])
+        additional_considerations_parts.append(f"Meal preferences: {meals}")
+    
+    if questionnaire.get('fasting'):
+        additional_considerations_parts.append("Interested in intermittent fasting")
+    
+    if questionnaire.get('motivation'):
+        additional_considerations_parts.append(f"Motivation: {questionnaire['motivation']}")
+    
+    if questionnaire.get('otherNotes'):
+        additional_considerations_parts.append(questionnaire['otherNotes'])
+    
+    additional_considerations = '; '.join(filter(None, additional_considerations_parts))
+    
+    # Create and return MealPlanRequest object
+    meal_plan_request = MealPlanRequest(
+        gender=questionnaire.get('gender', 'male'),
+        height=float(questionnaire.get('height', 170)),
+        age=int(questionnaire.get('age', 30)),
+        weight=float(questionnaire.get('weight', 70)),
+        workouts_per_week=int(questionnaire.get('workoutFrequency', 0)),
+        goal=goal_map.get(questionnaire.get('overallGoal', '').lower(), 'General Health / Maintenance'),
+        diet=questionnaire.get('specificDiet', 'balanced'),
+        additional_considerations=additional_considerations,
+        weight_goal=float(questionnaire.get('weightGoal', questionnaire.get('weight', 70))),
+        planned_weekly_weight_loss=float(questionnaire.get('weeklyWeightLoss', 0.5)),
+    )
+    
+    print(f"✅ Converted questionnaire to MealPlanRequest")
+    return meal_plan_request

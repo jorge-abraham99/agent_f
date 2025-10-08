@@ -16,6 +16,7 @@ python-dotenv
 fuzzywuzzy
 py-expression-eval
 pydantic[email]
+email-validator
 python-multipart
 
 # Optional: for faster fuzzy string matching

@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr
-from typing import Optional
+from typing import Optional, Any
 
 # Your existing model, moved here
 class MealPlanRequest(BaseModel):
@@ -18,6 +18,8 @@ class MealPlanRequest(BaseModel):
 class UserCreate(BaseModel):
     email: EmailStr
     password: str
+    name: str
+    questionnaire_data: Optional[dict[str, Any]] = None
 
 class Token(BaseModel):
     access_token: str

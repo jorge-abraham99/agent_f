@@ -6,7 +6,7 @@ from fastapi.responses import JSONResponse
 # --- UPDATED IMPORTS ---
 from app.models.schemas import MealPlanRequest
 from app.models.user_logic import user
-from app.services.agent_service import generate_meal_plan_with_agent, map_workouts_to_activity_level
+from app.services.agent_service import generate_meal_plan_with_agent, map_workouts_to_activity_level,convert_questionnaire_to_meal_plan_request
 
 from fastapi import Depends       # We need 'Depends' to use our dependency
 from gotrue.types import User     # This is the data type for the user object Supabase returns
@@ -23,12 +23,26 @@ router = APIRouter(
 # NOTE: The endpoint path is now just "/", because the prefix is added automatically.
 # Full path will be /plans/generate_meal_plan
 @router.post("/generate_meal_plan", response_class=JSONResponse)
-def generate_meal_plan(request: MealPlanRequest,current_user: User = Depends(get_current_user)):
-    """Generate a personalized meal plan based on user information"""
+def generate_meal_plan(current_user: User = Depends(get_current_user)):
+    """
+    Generate a personalized meal plan based on user's questionnaire data 
+    stored in their Supabase auth metadata.
+    """
     try:
+        print(f"📋 Generating meal plan for user: {str(current_user.user.id)}")
+        
+        # Get questionnaire data from user metadata
+        questionnaire_data = get_user_questionnaire(str(current_user.user.id))
+        
+        # Convert to MealPlanRequest format
+        request = convert_questionnaire_to_meal_plan_request(questionnaire_data)
+        
+        print(f"📊 Meal plan request: {request.dict()}")
+        
         # Map workouts per week to activity level
         activity_level = map_workouts_to_activity_level(request.workouts_per_week)
         user_id = str(current_user.user.id)
+        
         # Create user instance
         user_instance = user(
             sex=request.gender,
@@ -36,7 +50,7 @@ def generate_meal_plan(request: MealPlanRequest,current_user: User = Depends(get
             age=request.age,
             weight=request.weight,
             activity_level=activity_level,
-            planned_weekly_weight_loss=request.planned_weekly_weight_loss,  # ADD THIS
+            planned_weekly_weight_loss=request.planned_weekly_weight_loss,
             desired_weight=request.weight_goal
         )
         
@@ -45,6 +59,8 @@ def generate_meal_plan(request: MealPlanRequest,current_user: User = Depends(get
         protein_grams = round(user_instance.protein_intake(request.goal), 1)
         fat_grams = round(user_instance.fat_intake(request.goal), 1)
         carbs_grams = round(user_instance.carbs_intake(request.goal), 1)
+        
+        print(f"🎯 Nutritional targets - Calories: {goal_calories}, Protein: {protein_grams}g, Fat: {fat_grams}g, Carbs: {carbs_grams}g")
         
         # Create prompt for the AI agent
         prompt = f"""
@@ -75,17 +91,22 @@ Do NOT end your response until save_meal_plan has been called.
 """
         
         # Generate meal plan using the agent
+        print(f"🤖 Calling AI agent to generate meal plan...")
         agent_response = generate_meal_plan_with_agent(prompt)
         
+        print(f"📥 Fetching saved meal plan from database...")
         meal_plan_json_string = get_current_meal_plan(user_id=user_id)
         
-        # The tool returns a JSON string, so we need to parse it.
+        # The tool returns a JSON string, so we need to parse it
         meal_plan_response = json.loads(meal_plan_json_string)
 
         meal_plan_data = None
         if meal_plan_response.get("success"):
             # Extract just the plan data to return in the response
             meal_plan_data = meal_plan_response.get("plan")
+            print(f"✅ Meal plan generated and saved successfully!")
+        else:
+            print(f"⚠️ Meal plan response: {meal_plan_response}")
 
         return {
             "status": "success",
@@ -110,7 +131,10 @@ Do NOT end your response until save_meal_plan has been called.
             "meal_plan": meal_plan_data
         }
         
+    except HTTPException:
+        raise
     except Exception as e:
+        print(f"❌ Error generating meal plan: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error generating meal plan: {str(e)}")
 
 @router.get("/current", response_class=JSONResponse)
@@ -151,4 +175,38 @@ def read_current_meal_plan(current_user: User = Depends(get_current_user)):
         raise HTTPException(
             status_code=500, 
             detail=f"An error occurred while retrieving the meal plan: {str(e)}"
+        )
+
+def get_user_questionnaire(user_id: str) -> dict:
+    """
+    Retrieve questionnaire data from the authenticated user's metadata.
+    Returns the questionnaire dict or raises an exception if not found.
+    """
+    try:
+        # Get the full user data from Supabase including metadata
+        user_response = supabase.auth.admin.get_user_by_id(user_id)
+        
+        if not user_response or not user_response.user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        # Extract questionnaire from user_metadata
+        user_metadata = user_response.user.user_metadata or {}
+        questionnaire_data = user_metadata.get('questionnaire', {})
+        
+        if not questionnaire_data:
+            raise HTTPException(
+                status_code=400,
+                detail="No questionnaire data found. Please complete the onboarding process."
+            )
+        
+        print(f"✅ Retrieved questionnaire data for user: {user_id}")
+        return questionnaire_data
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error retrieving questionnaire: {str(e)}")
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Failed to retrieve questionnaire: {str(e)}"
         )
