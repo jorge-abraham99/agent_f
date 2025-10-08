@@ -21,7 +21,7 @@ def sign_up(user_credentials: UserCreate):
     
     frontend_urls = {
         "dev": "http://localhost:8081",
-        "prod": "https://yourdomain.com"
+        "prod": "https://nutriwise-onboard-ace.vercel.app"
     }
     
     frontend_url = frontend_urls.get(environment, "http://localhost:8081")
