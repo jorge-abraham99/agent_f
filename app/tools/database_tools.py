@@ -80,18 +80,73 @@ def save_meal_plan(user_id: str, plan_data: dict, user_targets: dict) -> str:
     """
     Saves a generated meal plan to the database for a specific user.
     
-    This creates a new meal plan entry with a timestamp. Each user can have multiple
-    meal plans saved over time.
-
     Args:
         user_id: The UUID of the user
-        plan_data: The complete JSON object of the meal plan with all meals and recipes
-        user_targets: The user's nutritional targets (calories, protein, fat, carbs, etc.)
+        plan_data: The complete meal plan object (will be converted to dict if needed)
+        user_targets: Dict with keys: calories, protein, fat, carbs (all numbers)
 
     Returns:
-        JSON string with success status and the saved plan ID, or an error message
+        JSON string with success status and plan ID, or error details
     """
     try:
+        # Validate user_id
+        if not user_id or not isinstance(user_id, str):
+            return json.dumps({
+                "success": False,
+                "error": "Invalid user_id. Must be a non-empty string."
+            })
+        
+        # Handle plan_data - convert from string if needed
+        if isinstance(plan_data, str):
+            try:
+                plan_data = json.loads(plan_data)
+            except json.JSONDecodeError:
+                return json.dumps({
+                    "success": False,
+                    "error": "plan_data is a string but not valid JSON"
+                })
+        
+        # Handle user_targets - convert from string if needed
+        if isinstance(user_targets, str):
+            try:
+                user_targets = json.loads(user_targets)
+            except json.JSONDecodeError:
+                return json.dumps({
+                    "success": False,
+                    "error": "user_targets is a string but not valid JSON"
+                })
+        
+        # Validate plan_data structure
+        if not isinstance(plan_data, dict):
+            return json.dumps({
+                "success": False,
+                "error": f"plan_data must be a dict, got {type(plan_data).__name__}"
+            })
+        
+        # Validate user_targets structure
+        if not isinstance(user_targets, dict):
+            return json.dumps({
+                "success": False,
+                "error": f"user_targets must be a dict, got {type(user_targets).__name__}"
+            })
+        
+        required_target_keys = ['calories', 'protein', 'fat', 'carbs']
+        missing_keys = [key for key in required_target_keys if key not in user_targets]
+        if missing_keys:
+            return json.dumps({
+                "success": False,
+                "error": f"user_targets missing required keys: {missing_keys}"
+            })
+        
+        # Ensure all target values are numbers
+        for key in required_target_keys:
+            if not isinstance(user_targets[key], (int, float)):
+                return json.dumps({
+                    "success": False,
+                    "error": f"user_targets['{key}'] must be a number, got {type(user_targets[key]).__name__}"
+                })
+        
+        # Insert into database
         response = supabase.table('meal_plans').insert({
             'user_id': user_id,
             'plan_data': plan_data,
@@ -100,21 +155,24 @@ def save_meal_plan(user_id: str, plan_data: dict, user_targets: dict) -> str:
         
         # Check if the insert was successful
         if response.data and len(response.data) > 0:
+            plan_id = response.data[0].get('id')
             return json.dumps({
                 "success": True,
-                "message": "Meal plan saved successfully.",
-                "plan_id": response.data[0].get('id')
+                "message": "Meal plan saved successfully",
+                "plan_id": plan_id
             })
         else:
+            error_msg = getattr(response, 'error', 'Unknown error')
             return json.dumps({
                 "success": False,
-                "error": f"Failed to save meal plan: {response.error}"
+                "error": f"Database insert failed: {error_msg}"
             })
 
     except Exception as e:
         return json.dumps({
             "success": False,
-            "error": f"An error occurred while saving the plan: {str(e)}"
+            "error": f"Exception while saving plan: {str(e)}",
+            "error_type": type(e).__name__
         })
 
 

@@ -387,17 +387,22 @@ SEARCH TIPS:
 CRITICAL: You MUST save every completed meal plan using the save_meal_plan tool.
 
 The save_meal_plan function requires THREE parameters:
-1. user_id: string (provided by the user)
-2. plan_data: dict (the complete meal_plan JSON object)
-3. user_targets: dict (the user's macro targets)
+1. user_id (string): The user's UUID from their request
+2. plan_data (dict): Your complete meal_plan JSON object
+3. user_targets (dict): User's targets in this exact format:
+   {
+       "calories": 2000,
+       "protein": 150,
+       "fat": 67,
+       "carbs": 200
+   }
 
-EXACT FORMAT FOR user_targets parameter:
-{
-    "calories": <number>,
-    "protein": <number>,
-    "fat": <number>,
-    "carbs": <number>
-}
+EXAMPLE CALL:
+save_meal_plan(
+    user_id="user-uuid-here",
+    plan_data=meal_plan,  # Your complete meal plan object
+    user_targets={"calories": 2000, "protein": 150, "fat": 67, "carbs": 200}
+)
 
 EXACT FORMAT FOR plan_data parameter:
 Use the COMPLETE meal_plan JSON object you created (including all meals, snacks, and totals).

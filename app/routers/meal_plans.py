@@ -30,9 +30,9 @@ def generate_meal_plan(current_user: User = Depends(get_current_user)):
     """
     try:
         print(f"📋 Generating meal plan for user: {str(current_user.user.id)}")
-        
+
         # Get questionnaire data from user metadata
-        questionnaire_data = get_user_questionnaire(str(current_user.user.id))
+        questionnaire_data = get_user_questionnaire(current_user)
         
         # Convert to MealPlanRequest format
         request = convert_questionnaire_to_meal_plan_request(questionnaire_data)
@@ -177,36 +177,30 @@ def read_current_meal_plan(current_user: User = Depends(get_current_user)):
             detail=f"An error occurred while retrieving the meal plan: {str(e)}"
         )
 
-def get_user_questionnaire(user_id: str) -> dict:
+def get_user_questionnaire(current_user: User) -> dict:
     """
     Retrieve questionnaire data from the authenticated user's metadata.
     Returns the questionnaire dict or raises an exception if not found.
     """
     try:
-        # Get the full user data from Supabase including metadata
-        user_response = supabase.auth.admin.get_user_by_id(user_id)
-        
-        if not user_response or not user_response.user:
-            raise HTTPException(status_code=404, detail="User not found")
-        
-        # Extract questionnaire from user_metadata
-        user_metadata = user_response.user.user_metadata or {}
+        # Extract questionnaire from user_metadata (already available in current_user)
+        user_metadata = current_user.user.user_metadata or {}
         questionnaire_data = user_metadata.get('questionnaire', {})
-        
+
         if not questionnaire_data:
             raise HTTPException(
                 status_code=400,
                 detail="No questionnaire data found. Please complete the onboarding process."
             )
-        
-        print(f"✅ Retrieved questionnaire data for user: {user_id}")
+
+        print(f"✅ Retrieved questionnaire data for user: {current_user.user.id}")
         return questionnaire_data
-        
+
     except HTTPException:
         raise
     except Exception as e:
         print(f"❌ Error retrieving questionnaire: {str(e)}")
         raise HTTPException(
-            status_code=500, 
+            status_code=500,
             detail=f"Failed to retrieve questionnaire: {str(e)}"
         )

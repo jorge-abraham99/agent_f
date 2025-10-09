@@ -40,9 +40,25 @@ tools = [
                 parameters=types.Schema(
                     type=types.Type.OBJECT,
                     properties={
-                        "user_id": types.Schema(type=types.Type.STRING, description="The user's unique identifier (UUID)."),
-                        "plan_data": types.Schema(type=types.Type.OBJECT, description="The complete JSON object of the meal plan."),
-                        "user_targets": types.Schema(type=types.Type.OBJECT, description="A JSON object of the user's nutritional targets.")
+                        "user_id": types.Schema(
+                            type=types.Type.STRING, 
+                            description="The user's unique identifier (UUID string)."
+                        ),
+                        "plan_data": types.Schema(
+                            type=types.Type.OBJECT, 
+                            description="The complete meal plan object containing all meals, snacks, and daily totals. Must include the full meal_plan structure with distribution, meals, and nutritional information."
+                        ),
+                        "user_targets": types.Schema(
+                            type=types.Type.OBJECT, 
+                            description="Object with user's nutritional targets. Required fields: calories (number), protein (number), fat (number), carbs (number).",
+                            properties={
+                                "calories": types.Schema(type=types.Type.NUMBER),
+                                "protein": types.Schema(type=types.Type.NUMBER),
+                                "fat": types.Schema(type=types.Type.NUMBER),
+                                "carbs": types.Schema(type=types.Type.NUMBER)
+                            },
+                            required=["calories", "protein", "fat", "carbs"]
+                        )
                     },
                     required=["user_id", "plan_data", "user_targets"]
                 )
