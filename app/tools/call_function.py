@@ -2,7 +2,7 @@ import json
 from google.genai import types
 
 # 1. Import the actual, callable Python functions
-from app.tools.database_tools import search_recipes, save_meal_plan, get_current_meal_plan,fuzzy_search_rows
+from app.tools.database_tools import search_recipes, save_meal_plan, get_current_meal_plan,fuzzy_search_rows,get_previous_recipes_in_week
 from app.tools.calculator import calculate
 
 # 2. Create the simple Python dictionary for execution mapping.
@@ -11,6 +11,7 @@ AVAILABLE_FUNCTIONS = {
     "get_current_meal_plan": get_current_meal_plan,
     "calculate": calculate,
     "fuzzy_search_rows": fuzzy_search_rows,
+    "get_previous_recipes_in_week": get_previous_recipes_in_week
 }
 
 # 3. Define the dispatcher function that uses the dictionary.

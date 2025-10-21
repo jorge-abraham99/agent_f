@@ -219,3 +219,47 @@ def get_current_meal_plan(user_id: str) -> str:
             "success": False,
             "error": f"An error occurred while retrieving the meal plan: {str(e)}"
         })
+    
+# app/tools/database_tools.py
+
+def get_previous_recipes_in_week(weekly_plan_id: int) -> str:
+    """
+    Retrieves all recipe names used so far in the current weekly plan
+    to help avoid repetition when generating new days.
+    
+    Args:
+        weekly_plan_id: The ID of the weekly plan being generated
+    
+    Returns:
+        JSON string with list of recipe names already used
+    """
+    try:
+        # Query all meals from daily plans in this weekly plan
+        response = supabase.table('meals')\
+            .select('recipe_id, recipes(name)')\
+            .in_('daily_plan_id', 
+                supabase.table('daily_plans')
+                    .select('id')
+                    .eq('weekly_plan_id', weekly_plan_id)
+                    .execute().data
+            )\
+            .execute()
+        
+        # Extract unique recipe names
+        recipe_names = list(set([
+            meal['recipes']['name'] 
+            for meal in response.data 
+            if meal.get('recipes')
+        ]))
+        
+        return json.dumps({
+            "success": True,
+            "recipes_used": recipe_names,
+            "count": len(recipe_names)
+        })
+        
+    except Exception as e:
+        return json.dumps({
+            "success": False,
+            "error": str(e)
+        })

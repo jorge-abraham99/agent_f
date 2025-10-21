@@ -5,13 +5,15 @@ from google.genai import types
 from dotenv import load_dotenv
 import json
 
-from app.core.prompts import system_prompt
+from app.core.prompts import system_prompt,weekly_day_system_prompt
 from app.tools.call_function import call_function
 
 # Import the actual functions we will be describing and calling
 from app.tools.database_tools import search_recipes, save_meal_plan, get_current_meal_plan
 from app.tools.calculator import calculate
 from app.models.schemas import MealPlanRequest
+from app.services.supabase_client import supabase
+from app.models.user_logic import user 
 
 # --- THIS IS THE CORRECTED TOOL DEFINITION BLOCK ---
 # We manually define the schema for each function the model can call.
@@ -111,6 +113,20 @@ tools = [
                     required=["query"]
                 )
             ),
+            types.FunctionDeclaration(
+                name="get_previous_recipes_in_week",
+                description="Retrieves recipe names already used in the current weekly plan to avoid repetition. Call this BEFORE searching for new recipes.",
+                parameters=types.Schema(
+                    type=types.Type.OBJECT,
+                    properties={
+                        "weekly_plan_id": types.Schema(
+                            type=types.Type.INTEGER,
+                            description="The ID of the weekly plan being generated"
+                        )
+                    },
+                    required=["weekly_plan_id"]
+                )
+            ),
         ]
     )
 ]
@@ -125,34 +141,43 @@ def map_workouts_to_activity_level(workouts_per_week: int) -> str:
     else:
         return "extra active"
 
-def generate_meal_plan_with_agent(prompt: str) -> str:
-    """Generate meal plan using the AI agent with detailed logging."""
+def generate_meal_plan_with_agent(prompt: str, use_weekly_prompt: bool = False) -> str:
+    """
+    Generate meal plan using the AI agent with detailed logging.
+    
+    Args:
+        prompt: The user prompt
+        use_weekly_prompt: If True, use weekly_day_system_prompt instead of system_prompt
+    """
     load_dotenv()
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
         raise HTTPException(status_code=500, detail="GEMINI_API_KEY not found")
 
+    # Choose which system prompt to use
+    selected_system_prompt = weekly_day_system_prompt if use_weekly_prompt else system_prompt
+
     client = genai.Client(api_key=api_key)
     messages = [types.Content(role="user", parts=[types.Part(text=prompt)])]
     
-    max_iters = 40 # A reasonable limit
+    max_iters = 40
     iters = 0
 
     print("\n--- STARTING NEW AGENT SESSION ---")
-    print(f"Initial Prompt: {prompt[:200]}...") # Print the start of the prompt
+    print(f"Using: {'WEEKLY' if use_weekly_prompt else 'PREVIEW'} system prompt")
+    print(f"Initial Prompt: {prompt[:200]}...")
 
     while iters < max_iters:
         iters += 1
         print(f"\n--- AGENT ITERATION {iters} ---")
 
         try:
-            # --- MAKE THE API CALL ---
             response = client.models.generate_content(
                 model="gemini-2.5-flash",
                 contents=messages,
                 config=types.GenerateContentConfig(
                     tools=tools,
-                    system_instruction=system_prompt
+                    system_instruction=selected_system_prompt
                 ),
             )
 
@@ -165,7 +190,6 @@ def generate_meal_plan_with_agent(prompt: str) -> str:
             print(f"Parts present: {candidate.content.parts if candidate.content else 'No content'}")
             print(f"Message history length: {len(messages)}")
 
-            # Try to see the raw response if available
             if hasattr(candidate, 'grounding_metadata'):
                 print(f"Grounding metadata: {candidate.grounding_metadata}")
             if hasattr(response, 'prompt_feedback'):
@@ -175,39 +199,35 @@ def generate_meal_plan_with_agent(prompt: str) -> str:
                 print("!!! Model returned an empty response. Stopping. !!!")
                 print(f"Finish reason was: {candidate.finish_reason}")
 
-                # Handle MALFORMED_FUNCTION_CALL specifically
                 if str(candidate.finish_reason) == "FinishReason.MALFORMED_FUNCTION_CALL":
                     print("⚠️ Model generated a malformed function call. Attempting recovery...")
                     print(f"   Iteration {iters}: This might be a save_meal_plan call with invalid JSON structure.")
 
-                    # Limit retries to prevent infinite loops
                     if iters >= max_iters - 5:
                         print("❌ Too many malformed calls near max iterations. Stopping.")
                         raise HTTPException(status_code=500, detail="Agent repeatedly generated malformed function calls")
 
-                    # Provide feedback to retry with valid function call
                     messages.append(types.Content(
                         role="user",
                         parts=[types.Part(text="Error: Your last function call was malformed. Please retry with valid JSON arguments. For save_meal_plan, ensure plan_data is a properly formatted dict with all required fields. Double-check all quotes, commas, and brackets.")]
                     ))
-                    continue  # Retry the loop
+                    continue
 
                 return "Agent returned an empty response."
 
             messages.append(candidate.content)
 
-            # --- PROCESS ALL PARTS, NOT JUST THE FIRST ONE ---
+            # --- PROCESS ALL PARTS ---
             parts = candidate.content.parts
             print(f"📦 Response has {len(parts)} part(s)")
 
             has_function_calls = False
-            final_text = None
+            all_text_parts = []  # ⭐ Collect ALL text parts
 
             for idx, part in enumerate(parts):
                 print(f"\n  Part {idx}: ", end="")
 
                 if hasattr(part, 'function_call') and part.function_call and part.function_call.name:
-                    # This part is a function call
                     has_function_calls = True
                     function_call = part.function_call
 
@@ -219,9 +239,8 @@ def generate_meal_plan_with_agent(prompt: str) -> str:
                     messages.append(tool_response)
 
                 elif hasattr(part, 'text') and part.text:
-                    # This part is text
                     print(f"Text: {part.text[:100]}...")
-                    final_text = part.text
+                    all_text_parts.append(part.text)  # ⭐ Collect this text
                 else:
                     print(f"Unknown part type: {type(part)}")
 
@@ -230,23 +249,23 @@ def generate_meal_plan_with_agent(prompt: str) -> str:
                 print("✅ Processed function call(s), continuing...")
                 continue
 
-            # If we only got text and no function calls, we're done
-            if final_text:
+            # ⭐ If we only got text and no function calls, concatenate ALL text parts
+            if all_text_parts:
+                final_text = "\n".join(all_text_parts)  # ⭐ Combine all text parts
                 print(f"✅ Agent finished. Final response: {final_text[:200]}...")
                 return final_text
 
-            # If we got here with no text and no function calls, something is wrong
             print("⚠️ Response had no function calls and no text. Continuing...")
             continue
 
         except Exception as e:
             print(f"!!! ERROR in agent loop: {e} !!!")
             import traceback
-            traceback.print_exc() # Print the full traceback for detailed debugging
+            traceback.print_exc()
             raise HTTPException(status_code=500, detail=f"Error in agent processing: {str(e)}")
 
     print("!!! Maximum iterations reached. Stopping. !!!")
-    raise HTTPException(status_code=508, detail="Maximum iterations reached, agent could not complete the request.")
+    raise HTTPException(status_code=508, detail="Maximum iterations")
 
 def convert_questionnaire_to_meal_plan_request(questionnaire: dict) -> MealPlanRequest:
     """
@@ -301,3 +320,254 @@ def convert_questionnaire_to_meal_plan_request(questionnaire: dict) -> MealPlanR
     
     print(f"✅ Converted questionnaire to MealPlanRequest")
     return meal_plan_request
+
+def generate_weekly_meal_plan(user_id: str, profile_data: dict, preferences: dict):
+    """
+    Generate a complete 7-day meal plan for a user.
+    
+    Args:
+        user_id: User's UUID
+        profile_data: User profile info (height, weight, age, etc.)
+        preferences: Diet preferences and restrictions
+    
+    Returns:
+        weekly_plan_id: ID of the created weekly plan
+    """
+    from datetime import date, timedelta
+    
+    # 1. Calculate nutritional targets (same as your current code)
+    activity_level = map_workouts_to_activity_level(profile_data['workouts_per_week'])
+    
+    user_instance = user(
+        sex=profile_data['gender'],
+        height=profile_data['height'],
+        age=profile_data['age'],
+        weight=profile_data['weight'],
+        activity_level=activity_level,
+        planned_weekly_weight_loss=profile_data.get('planned_weekly_weight_loss', 0.5),
+        desired_weight=profile_data.get('weight_goal', profile_data['weight'])
+    )
+    
+    goal = profile_data.get('goal', 'General Health / Maintenance')
+    
+    daily_calories = round(user_instance.goal_based_bmr(goal))
+    daily_protein = round(user_instance.protein_intake(goal), 1)
+    daily_fat = round(user_instance.fat_intake(goal), 1)
+    daily_carbs = round(user_instance.carbs_intake(goal), 1)
+    
+    # 2. Create weekly plan container
+    week_start = get_next_monday()
+    
+    weekly_plan = supabase.table('weekly_plans').insert({
+        'user_id': user_id,
+        'week_start_date': str(week_start),
+        'status': 'generating',
+        'weekly_target_calories': daily_calories * 7,
+        'weekly_target_protein': daily_protein * 7,
+        'weekly_target_carbs': daily_carbs * 7,
+        'weekly_target_fat': daily_fat * 7,
+    }).execute()
+    
+    weekly_plan_id = weekly_plan.data[0]['id']
+    
+    print(f"📅 Created weekly plan {weekly_plan_id} starting {week_start}")
+    
+    # 3. Generate all 7 days
+    try:
+        for day_num in range(7):
+            day_date = week_start + timedelta(days=day_num)
+            
+            print(f"\n🗓️ Generating Day {day_num + 1} ({day_date.strftime('%A, %B %d')})")
+            
+            generate_single_day_for_weekly_plan(
+                weekly_plan_id=weekly_plan_id,
+                day_number=day_num + 1,
+                day_date=day_date,
+                user_id=user_id,
+                daily_targets={
+                    'calories': daily_calories,
+                    'protein': daily_protein,
+                    'carbs': daily_carbs,
+                    'fat': daily_fat
+                },
+                preferences=preferences
+            )
+        
+        # 4. Mark as active
+        supabase.table('weekly_plans').update({
+            'status': 'active'
+        }).eq('id', weekly_plan_id).execute()
+        
+        print(f"✅ Weekly plan {weekly_plan_id} completed successfully!")
+        
+        return weekly_plan_id
+        
+    except Exception as e:
+        print(f"❌ Error generating weekly plan: {e}")
+        
+        # Mark as failed
+        supabase.table('weekly_plans').update({
+            'status': 'failed'
+        }).eq('id', weekly_plan_id).execute()
+        
+        raise e
+
+
+def generate_single_day_for_weekly_plan(
+    weekly_plan_id: int,
+    day_number: int,
+    day_date,
+    user_id: str,
+    daily_targets: dict,
+    preferences: dict
+):
+    """
+    Generate meals for a single day within a weekly plan.
+    Uses the SAME agent but with different prompt context.
+    """
+    
+    # 1. Create daily plan
+    daily_plan = supabase.table('daily_plans').insert({
+        'weekly_plan_id': weekly_plan_id,
+        'date': str(day_date),
+        'day_of_week': day_number,
+        'daily_target_calories': daily_targets['calories'],
+        'daily_target_protein': daily_targets['protein'],
+        'daily_target_carbs': daily_targets['carbs'],
+        'daily_target_fat': daily_targets['fat'],
+    }).execute()
+    
+    daily_plan_id = daily_plan.data[0]['id']
+    
+    # 2. Create prompt for THIS day (includes weekly_plan_id for context)
+    prompt = f"""
+Hi NutriWise AI, I need a meal plan for Day {day_number} of my 7-day weekly plan.
+
+**CONTEXT:**
+- This is day {day_number}/7 of weekly_plan_id: {weekly_plan_id}
+- **CRITICAL:** Call get_previous_recipes_in_week({weekly_plan_id}) FIRST to see what recipes I've already had
+- Avoid repeating any recipes from previous days
+
+**My Daily Targets:**
+- Calories: {daily_targets['calories']}
+- Protein: {daily_targets['protein']}g
+- Fat: {daily_targets['fat']}g
+- Carbs: {daily_targets['carbs']}g
+
+**Dietary Preference:** {preferences.get('diet', 'balanced')}
+**Foods to Avoid:** {preferences.get('foodsToAvoid', [])}
+**Additional Preferences:** {preferences.get('additional_considerations', '')}
+
+**YOUR TASK:**
+1. **FIRST:** Call get_previous_recipes_in_week({weekly_plan_id}) to check what recipes were used
+2. Calculate meal targets (20% breakfast, 32.5% lunch, 32.5% dinner, 15% snacks)
+3. Search for recipes that are DIFFERENT from previous days
+4. Return the meal_plan JSON with recipe_id included
+
+**IMPORTANT:** 
+- Do NOT call save_meal_plan (this is a weekly plan, not a preview)
+- Return ONLY the meal_plan JSON structure
+- Include recipe_id for each meal
+"""
+    
+    # 3. Call your EXISTING agent function
+    print(f"🤖 Calling agent for day {day_number}...")
+    agent_response = generate_meal_plan_with_agent(prompt)
+    
+    # 4. Parse response and insert meals
+    meal_plan_json = extract_meal_plan_from_response(agent_response)
+    insert_meals_from_json(daily_plan_id, meal_plan_json)
+    
+    print(f"✅ Day {day_number} completed with {len(meal_plan_json.get('meal_plan', {}))} meals")
+
+
+def extract_meal_plan_from_response(agent_response: str) -> dict:
+    """
+    Extract JSON meal plan from agent's response.
+    Agent might return text + JSON, so we need to parse it.
+    """
+    import re
+    
+    # Try to find JSON in code blocks
+    json_match = re.search(r'```json\s*(\{.*?\})\s*```', agent_response, re.DOTALL)
+    if json_match:
+        return json.loads(json_match.group(1))
+    
+    # Try to find raw JSON
+    json_match = re.search(r'\{.*"meal_plan".*\}', agent_response, re.DOTALL)
+    if json_match:
+        return json.loads(json_match.group(0))
+    
+    # If we can't find JSON, raise error
+    raise ValueError(f"Could not extract meal plan JSON from agent response: {agent_response[:500]}")
+
+
+def insert_meals_from_json(daily_plan_id: int, meal_plan_json: dict):
+    """
+    Parse the agent's meal plan JSON and insert into meals table.
+    """
+    meal_plan = meal_plan_json.get('meal_plan', {})
+    
+    meals_to_insert = []
+    
+    meal_type_map = {
+        'Breakfast': 'breakfast',
+        'Lunch': 'lunch',
+        'Dinner': 'dinner',
+        'Snack 1': 'snack',
+        'Snack 2': 'snack',
+    }
+    
+    snack_order = 1
+    
+    for meal_name, meal_data in meal_plan.items():
+        if meal_name in ['Daily Totals', 'distribution']:
+            continue
+        
+        meal_type = meal_type_map.get(meal_name)
+        if not meal_type:
+            print(f"⚠️ Unknown meal type: {meal_name}, skipping")
+            continue
+        
+        # Extract data from agent response
+        recipe_id = meal_data.get('recipe_id')
+        if not recipe_id:
+            print(f"❌ Missing recipe_id for {meal_name}, skipping")
+            continue
+        
+        servings = meal_data.get('servings', 1.0)
+        total_nutrition = meal_data.get('total_nutrition', {})
+        
+        meal_record = {
+            'daily_plan_id': daily_plan_id,
+            'meal_type': meal_type,
+            'meal_order': snack_order if meal_type == 'snack' else 1,
+            'recipe_id': int(recipe_id),
+            'servings': round(float(servings), 2),
+            'actual_calories': round(total_nutrition.get('calories', 0)),
+            'actual_protein': round(total_nutrition.get('protein', 0), 1),
+            'actual_carbs': round(total_nutrition.get('carbohydrates', 0), 1),
+            'actual_fat': round(total_nutrition.get('fat', 0), 1),
+        }
+        
+        meals_to_insert.append(meal_record)
+        
+        if meal_type == 'snack':
+            snack_order += 1
+    
+    # Bulk insert all meals
+    if meals_to_insert:
+        supabase.table('meals').insert(meals_to_insert).execute()
+        print(f"✅ Inserted {len(meals_to_insert)} meals")
+    else:
+        raise ValueError("No valid meals to insert")
+
+
+def get_next_monday():
+    """Get the date of next Monday"""
+    from datetime import date, timedelta
+    today = date.today()
+    days_ahead = 0 - today.weekday()  # Monday is 0
+    if days_ahead <= 0:
+        days_ahead += 7
+    return today + timedelta(days=days_ahead)

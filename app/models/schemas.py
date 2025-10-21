@@ -24,3 +24,14 @@ class UserCreate(BaseModel):
 class Token(BaseModel):
     access_token: str
     token_type: str
+
+class ProfileCreate(BaseModel):
+    """Profile data from onboarding questionnaire"""
+    gender: str  # "male" or "female"
+    height: float  # cm
+    weight: float  # kg
+    age: int
+    workouts_per_week: int  # 0-7
+    goal: str  # "lose", "build", "maintain"
+    weight_goal: float  # kg
+    planned_weekly_weight_loss: Optional[float] = 0.5
