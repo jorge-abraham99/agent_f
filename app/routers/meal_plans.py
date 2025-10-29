@@ -194,46 +194,127 @@ def generate_weekly_plan_endpoint(current_user: User = Depends(get_current_user)
         }
     """
     try:
+        print("\n" + "="*80)
+        print("🚀 STARTING WEEKLY PLAN GENERATION")
+        print("="*80)
+
         user_id = str(current_user.user.id)
-        print(f"📅 Generating weekly meal plan for user: {user_id}")
-        
+        print(f"📅 Step 1: User ID extracted: {user_id}")
+
         # 1. Get user's questionnaire data
-        questionnaire_data = get_user_questionnaire(current_user)
-        
+        print(f"\n📋 Step 2: Fetching questionnaire data from user metadata...")
+        try:
+            questionnaire_data = get_user_questionnaire(current_user)
+            print(f"✅ Questionnaire data retrieved successfully")
+            print(f"   Type: {type(questionnaire_data)}")
+            print(f"   Keys: {list(questionnaire_data.keys()) if isinstance(questionnaire_data, dict) else 'N/A'}")
+            print(f"   Content preview: {str(questionnaire_data)[:200]}...")
+        except Exception as qe:
+            print(f"❌ ERROR in get_user_questionnaire: {str(qe)}")
+            print(f"   Error type: {type(qe).__name__}")
+            import traceback
+            traceback.print_exc()
+            raise
+
         # 2. Get user profile from database (for additional data)
-        profile_response = supabase.table('profiles')\
-            .select('*')\
-            .eq('id', user_id)\
-            .single()\
-            .execute()
-        
-        if not profile_response.data:
-            raise HTTPException(status_code=404, detail="User profile not found")
-        
-        profile = profile_response.data
-        
+        print(f"\n👤 Step 3: Fetching profile from database...")
+        try:
+            profile_response = supabase.table('profiles')\
+                .select('*')\
+                .eq('id', user_id)\
+                .single()\
+                .execute()
+
+            print(f"   Response received: {hasattr(profile_response, 'data')}")
+            print(f"   Data type: {type(profile_response.data)}")
+            print(f"   Data is None: {profile_response.data is None}")
+
+            if profile_response.data:
+                print(f"   Profile keys: {list(profile_response.data.keys()) if isinstance(profile_response.data, dict) else 'N/A'}")
+                print(f"   Profile content: {profile_response.data}")
+
+            if not profile_response.data:
+                print(f"❌ No profile data returned from database")
+                raise HTTPException(status_code=404, detail="User profile not found")
+
+            profile = profile_response.data
+            print(f"✅ Profile retrieved successfully")
+
+        except HTTPException:
+            raise
+        except Exception as pe:
+            print(f"❌ ERROR fetching profile: {str(pe)}")
+            print(f"   Error type: {type(pe).__name__}")
+            import traceback
+            traceback.print_exc()
+            raise
+
         # 3. Merge questionnaire and profile data
-        profile_data = {
-            'gender': profile['gender'],
-            'height': profile['height'],
-            'age': profile['age'],
-            'weight': profile['weight'],
-            'workouts_per_week': profile['workouts_per_week'],
-            'goal': profile['goal'],
-            'weight_goal': profile['weight_goal'],
-            'planned_weekly_weight_loss': profile['planned_weekly_weight_loss'],
-        }
-        
+        print(f"\n🔧 Step 4: Building profile_data dict...")
+        try:
+            profile_data = {
+                'gender': profile['gender'],
+                'height': profile['height'],
+                'age': profile['age'],
+                'weight': profile['weight'],
+                'workouts_per_week': profile['workouts_per_week'],
+                'goal': profile['goal'],
+                'weight_goal': profile['weight_goal'],
+                'planned_weekly_weight_loss': profile['planned_weekly_weight_loss'],
+            }
+            print(f"✅ Profile data assembled: {profile_data}")
+        except KeyError as ke:
+            print(f"❌ ERROR: Missing key in profile: {str(ke)}")
+            print(f"   Available keys: {list(profile.keys()) if isinstance(profile, dict) else 'N/A'}")
+            raise HTTPException(status_code=500, detail=f"Profile missing required field: {str(ke)}")
+        except Exception as pde:
+            print(f"❌ ERROR building profile_data: {str(pde)}")
+            import traceback
+            traceback.print_exc()
+            raise
+
         # 4. Build preferences
-        preferences = {
-            'diet': questionnaire_data.get('specificDiet', 'balanced'),
-            'foodsToAvoid': questionnaire_data.get('foodsToAvoid', []),
-            'cuisinePreferences': questionnaire_data.get('cuisinePreferences', []),
-            'additional_considerations': build_additional_considerations(questionnaire_data)
-        }
-        
-        print(f"📊 Profile data: {profile_data}")
-        print(f"🍽️ Preferences: {preferences}")
+        print(f"\n🍽️ Step 5: Building preferences dict...")
+        try:
+            print(f"   Extracting diet from questionnaire...")
+            diet = questionnaire_data.get('specificDiet', 'balanced')
+            print(f"   Diet: {diet}")
+
+            print(f"   Extracting foodsToAvoid...")
+            foods_to_avoid = questionnaire_data.get('foodsToAvoid', [])
+            print(f"   Foods to avoid: {foods_to_avoid}")
+
+            print(f"   Extracting cuisinePreferences...")
+            cuisine_prefs = questionnaire_data.get('cuisinePreferences', [])
+            print(f"   Cuisine preferences: {cuisine_prefs}")
+
+            print(f"   Calling build_additional_considerations...")
+            additional = build_additional_considerations(questionnaire_data)
+            print(f"   Additional considerations: {additional[:100] if additional else 'None'}...")
+
+            preferences = {
+                'diet': diet,
+                'foodsToAvoid': foods_to_avoid,
+                'cuisinePreferences': cuisine_prefs,
+                'additional_considerations': additional
+            }
+            print(f"✅ Preferences assembled successfully")
+            print(f"   Preferences: {preferences}")
+        except AttributeError as ae:
+            print(f"❌ ERROR: AttributeError in preferences building: {str(ae)}")
+            print(f"   questionnaire_data type: {type(questionnaire_data)}")
+            print(f"   questionnaire_data value: {questionnaire_data}")
+            import traceback
+            traceback.print_exc()
+            raise HTTPException(status_code=500, detail=f"Error building preferences: {str(ae)}")
+        except Exception as pre:
+            print(f"❌ ERROR building preferences: {str(pre)}")
+            import traceback
+            traceback.print_exc()
+            raise
+
+        print(f"\n📊 Summary - Profile data: {profile_data}")
+        print(f"🍽️ Summary - Preferences: {preferences}")
         
         # 5. Generate weekly meal plan (this calls the agent 7 times)
         weekly_plan_id = generate_weekly_meal_plan(

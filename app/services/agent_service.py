@@ -374,24 +374,48 @@ def generate_weekly_meal_plan(user_id: str, profile_data: dict, preferences: dic
     
     # 3. Generate all 7 days
     try:
+        print(f"\n🔄 Starting 7-day generation loop...")
+        print(f"   Preferences type: {type(preferences)}")
+        print(f"   Preferences content: {preferences}")
+
         for day_num in range(7):
             day_date = week_start + timedelta(days=day_num)
-            
-            print(f"\n🗓️ Generating Day {day_num + 1} ({day_date.strftime('%A, %B %d')})")
-            
-            generate_single_day_for_weekly_plan(
-                weekly_plan_id=weekly_plan_id,
-                day_number=day_num + 1,
-                day_date=day_date,
-                user_id=user_id,
-                daily_targets={
-                    'calories': daily_calories,
-                    'protein': daily_protein,
-                    'carbs': daily_carbs,
-                    'fat': daily_fat
-                },
-                preferences=preferences
-            )
+
+            print(f"\n{'='*60}")
+            print(f"🗓️ Generating Day {day_num + 1} of 7 ({day_date.strftime('%A, %B %d')})")
+            print(f"{'='*60}")
+
+            try:
+                print(f"   Calling generate_single_day_for_weekly_plan...")
+                print(f"   Parameters:")
+                print(f"     - weekly_plan_id: {weekly_plan_id}")
+                print(f"     - day_number: {day_num + 1}")
+                print(f"     - day_date: {day_date}")
+                print(f"     - user_id: {user_id}")
+                print(f"     - daily_targets: {{'calories': {daily_calories}, 'protein': {daily_protein}, 'carbs': {daily_carbs}, 'fat': {daily_fat}}}")
+                print(f"     - preferences type: {type(preferences)}")
+
+                generate_single_day_for_weekly_plan(
+                    weekly_plan_id=weekly_plan_id,
+                    day_number=day_num + 1,
+                    day_date=day_date,
+                    user_id=user_id,
+                    daily_targets={
+                        'calories': daily_calories,
+                        'protein': daily_protein,
+                        'carbs': daily_carbs,
+                        'fat': daily_fat
+                    },
+                    preferences=preferences
+                )
+                print(f"✅ Day {day_num + 1} completed successfully!")
+
+            except Exception as day_error:
+                print(f"❌ ERROR generating day {day_num + 1}: {str(day_error)}")
+                print(f"   Error type: {type(day_error).__name__}")
+                import traceback
+                traceback.print_exc()
+                raise
         
         # 4. Mark as active
         supabase.table('weekly_plans').update({
@@ -425,22 +449,56 @@ def generate_single_day_for_weekly_plan(
     Generate meals for a single day within a weekly plan.
     Uses the SAME agent but with different prompt context.
     """
-    
+
+    print(f"🔧 generate_single_day_for_weekly_plan called")
+    print(f"   Received preferences type: {type(preferences)}")
+    print(f"   Received preferences value: {preferences}")
+
     # 1. Create daily plan
-    daily_plan = supabase.table('daily_plans').insert({
-        'weekly_plan_id': weekly_plan_id,
-        'date': str(day_date),
-        'day_of_week': day_number,
-        'daily_target_calories': daily_targets['calories'],
-        'daily_target_protein': daily_targets['protein'],
-        'daily_target_carbs': daily_targets['carbs'],
-        'daily_target_fat': daily_targets['fat'],
-    }).execute()
-    
-    daily_plan_id = daily_plan.data[0]['id']
-    
+    try:
+        print(f"   Creating daily plan in database...")
+        daily_plan = supabase.table('daily_plans').insert({
+            'weekly_plan_id': weekly_plan_id,
+            'date': str(day_date),
+            'day_of_week': day_number,
+            'daily_target_calories': daily_targets['calories'],
+            'daily_target_protein': daily_targets['protein'],
+            'daily_target_carbs': daily_targets['carbs'],
+            'daily_target_fat': daily_targets['fat'],
+        }).execute()
+
+        daily_plan_id = daily_plan.data[0]['id']
+        print(f"   ✅ Daily plan created with ID: {daily_plan_id}")
+    except Exception as dp_error:
+        print(f"   ❌ ERROR creating daily plan: {str(dp_error)}")
+        raise
+
     # 2. Create prompt for THIS day (includes weekly_plan_id for context)
-    prompt = f"""
+    try:
+        print(f"   Building prompt with preferences...")
+        print(f"   Extracting diet preference...")
+
+        # Defensive checks
+        if preferences is None:
+            print(f"   ⚠️ WARNING: preferences is None!")
+            diet = 'balanced'
+            foods_to_avoid = []
+            additional = ''
+        elif not isinstance(preferences, dict):
+            print(f"   ⚠️ WARNING: preferences is not a dict, it's {type(preferences)}")
+            diet = 'balanced'
+            foods_to_avoid = []
+            additional = ''
+        else:
+            diet = preferences.get('diet', 'balanced')
+            foods_to_avoid = preferences.get('foodsToAvoid', [])
+            additional = preferences.get('additional_considerations', '')
+
+        print(f"   Diet: {diet}")
+        print(f"   Foods to avoid: {foods_to_avoid}")
+        print(f"   Additional: {additional[:50] if additional else 'None'}...")
+
+        prompt = f"""
 Hi NutriWise AI, I need a meal plan for Day {day_number} of my 7-day weekly plan.
 
 **CONTEXT:**
@@ -454,9 +512,9 @@ Hi NutriWise AI, I need a meal plan for Day {day_number} of my 7-day weekly plan
 - Fat: {daily_targets['fat']}g
 - Carbs: {daily_targets['carbs']}g
 
-**Dietary Preference:** {preferences.get('diet', 'balanced')}
-**Foods to Avoid:** {preferences.get('foodsToAvoid', [])}
-**Additional Preferences:** {preferences.get('additional_considerations', '')}
+**Dietary Preference:** {diet}
+**Foods to Avoid:** {foods_to_avoid}
+**Additional Preferences:** {additional}
 
 **YOUR TASK:**
 1. **FIRST:** Call get_previous_recipes_in_week({weekly_plan_id}) to check what recipes were used
@@ -464,11 +522,24 @@ Hi NutriWise AI, I need a meal plan for Day {day_number} of my 7-day weekly plan
 3. Search for recipes that are DIFFERENT from previous days
 4. Return the meal_plan JSON with recipe_id included
 
-**IMPORTANT:** 
+**IMPORTANT:**
 - Do NOT call save_meal_plan (this is a weekly plan, not a preview)
 - Return ONLY the meal_plan JSON structure
 - Include recipe_id for each meal
 """
+        print(f"   ✅ Prompt built successfully")
+    except AttributeError as prompt_error:
+        print(f"   ❌ AttributeError building prompt: {str(prompt_error)}")
+        print(f"   preferences type: {type(preferences)}")
+        print(f"   preferences value: {preferences}")
+        import traceback
+        traceback.print_exc()
+        raise
+    except Exception as prompt_error:
+        print(f"   ❌ ERROR building prompt: {str(prompt_error)}")
+        import traceback
+        traceback.print_exc()
+        raise
     
     # 3. Call your EXISTING agent function
     print(f"🤖 Calling agent for day {day_number}...")
