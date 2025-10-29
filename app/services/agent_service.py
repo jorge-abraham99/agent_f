@@ -198,6 +198,7 @@ def generate_meal_plan_with_agent(prompt: str, use_weekly_prompt: bool = False) 
             if not candidate.content or not candidate.content.parts:
                 print("!!! Model returned an empty response. Stopping. !!!")
                 print(f"Finish reason was: {candidate.finish_reason}")
+                print(f"Iteration: {iters}")
 
                 if str(candidate.finish_reason) == "FinishReason.MALFORMED_FUNCTION_CALL":
                     print("⚠️ Model generated a malformed function call. Attempting recovery...")
@@ -213,6 +214,15 @@ def generate_meal_plan_with_agent(prompt: str, use_weekly_prompt: bool = False) 
                     ))
                     continue
 
+                # If we get STOP with empty content on first iteration, it might be a rate limit or safety issue
+                if iters == 1:
+                    print("❌ Empty response on first iteration - possible rate limit or prompt issue")
+                    raise HTTPException(
+                        status_code=429,
+                        detail="AI service returned empty response. This may be due to rate limiting or prompt safety filters. Please try again in a moment."
+                    )
+
+                print(f"⚠️ Returning empty response after {iters} iterations")
                 return "Agent returned an empty response."
 
             messages.append(candidate.content)
@@ -541,14 +551,48 @@ Hi NutriWise AI, I need a meal plan for Day {day_number} of my 7-day weekly plan
         traceback.print_exc()
         raise
     
-    # 3. Call your EXISTING agent function
+    # 3. Call your EXISTING agent function with weekly prompt
     print(f"🤖 Calling agent for day {day_number}...")
-    agent_response = generate_meal_plan_with_agent(prompt)
-    
+    print(f"   Using weekly_day_system_prompt (use_weekly_prompt=True)")
+
+    try:
+        agent_response = generate_meal_plan_with_agent(prompt, use_weekly_prompt=True)
+
+        # Check if we got an empty response
+        if agent_response == "Agent returned an empty response.":
+            print(f"⚠️ Agent returned empty response, retrying with simplified prompt...")
+
+            # Retry with simpler prompt
+            simplified_prompt = f"""
+Create a meal plan for Day {day_number}.
+
+Daily Targets: {daily_targets['calories']} calories, {daily_targets['protein']}g protein, {daily_targets['fat']}g fat, {daily_targets['carbs']}g carbs
+Diet: {diet}
+
+Return ONLY the meal_plan JSON with recipe_id for each meal.
+"""
+            agent_response = generate_meal_plan_with_agent(simplified_prompt, use_weekly_prompt=True)
+
+            if agent_response == "Agent returned an empty response.":
+                raise ValueError(f"Agent failed to generate meal plan for day {day_number} after retry")
+
+    except Exception as agent_error:
+        print(f"❌ Agent error for day {day_number}: {str(agent_error)}")
+        raise
+
     # 4. Parse response and insert meals
-    meal_plan_json = extract_meal_plan_from_response(agent_response)
+    print(f"   Parsing agent response...")
+    try:
+        meal_plan_json = extract_meal_plan_from_response(agent_response)
+        print(f"   ✅ Meal plan JSON extracted successfully")
+    except ValueError as parse_error:
+        print(f"   ❌ Failed to parse agent response: {str(parse_error)}")
+        print(f"   Response preview: {agent_response[:300]}...")
+        raise
+
+    print(f"   Inserting meals into database...")
     insert_meals_from_json(daily_plan_id, meal_plan_json)
-    
+
     print(f"✅ Day {day_number} completed with {len(meal_plan_json.get('meal_plan', {}))} meals")
 
 
@@ -558,18 +602,36 @@ def extract_meal_plan_from_response(agent_response: str) -> dict:
     Agent might return text + JSON, so we need to parse it.
     """
     import re
-    
-    # Try to find JSON in code blocks
-    json_match = re.search(r'```json\s*(\{.*?\})\s*```', agent_response, re.DOTALL)
+
+    print(f"📋 Extracting meal plan from response...")
+    print(f"   Response length: {len(agent_response)} characters")
+    print(f"   Response preview: {agent_response[:200]}...")
+
+    # Try to find JSON in code blocks (use greedy matching to capture full JSON)
+    json_match = re.search(r'```json\s*(\{.*\})\s*```', agent_response, re.DOTALL)
     if json_match:
-        return json.loads(json_match.group(1))
-    
-    # Try to find raw JSON
-    json_match = re.search(r'\{.*"meal_plan".*\}', agent_response, re.DOTALL)
+        print(f"   ✅ Found JSON in code block")
+        json_str = json_match.group(1)
+        try:
+            return json.loads(json_str)
+        except json.JSONDecodeError as e:
+            print(f"   ❌ JSON decode error: {str(e)}")
+            print(f"   Problematic JSON preview: {json_str[:300]}...")
+            raise ValueError(f"Invalid JSON in code block: {str(e)}")
+
+    # Try to find raw JSON (greedy match for nested structures)
+    json_match = re.search(r'\{[^{}]*"meal_plan"[^{}]*\{.*\}\s*\}', agent_response, re.DOTALL)
     if json_match:
-        return json.loads(json_match.group(0))
-    
-    # If we can't find JSON, raise error
+        print(f"   ✅ Found raw JSON")
+        json_str = json_match.group(0)
+        try:
+            return json.loads(json_str)
+        except json.JSONDecodeError as e:
+            print(f"   ❌ JSON decode error: {str(e)}")
+            raise ValueError(f"Invalid raw JSON: {str(e)}")
+
+    # If we can't find JSON, raise error with more context
+    print(f"   ❌ No valid JSON found in response")
     raise ValueError(f"Could not extract meal plan JSON from agent response: {agent_response[:500]}")
 
 
