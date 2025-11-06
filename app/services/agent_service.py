@@ -638,6 +638,9 @@ def extract_meal_plan_from_response(agent_response: str) -> dict:
 def insert_meals_from_json(daily_plan_id: int, meal_plan_json: dict):
     """
     Parse the agent's meal plan JSON and insert into meals table.
+    
+    Includes a defensive check to handle cases where the LLM returns 'null'
+    or an incorrect type for a meal entry.
     """
     meal_plan = meal_plan_json.get('meal_plan', {})
     
@@ -657,18 +660,34 @@ def insert_meals_from_json(daily_plan_id: int, meal_plan_json: dict):
         if meal_name in ['Daily Totals', 'distribution']:
             continue
         
+        # ===================================================
+        # 🛑 CRITICAL FIX: Ensure meal_data is a dictionary
+        # This prevents the 'NoneType' object has no attribute 'get' error
+        # ===================================================
+        if not isinstance(meal_data, dict):
+            print(f"❌ Skipping {meal_name}: Expected dictionary for meal data, but received {type(meal_data)}. LLM likely returned 'null' or a string.")
+            continue
+        # ===================================================
+        
         meal_type = meal_type_map.get(meal_name)
         if not meal_type:
             print(f"⚠️ Unknown meal type: {meal_name}, skipping")
             continue
         
         # Extract data from agent response
+        # This line (which was line 666) is now safe
         recipe_id = meal_data.get('recipe_id')
         if not recipe_id:
             print(f"❌ Missing recipe_id for {meal_name}, skipping")
             continue
         
-        servings = meal_data.get('servings', 1.0)
+        # Ensure robust type conversion for servings and nutrition
+        try:
+            servings = float(meal_data.get('servings', 1.0))
+        except (TypeError, ValueError):
+            print(f"⚠️ Invalid servings value for {meal_name}: {meal_data.get('servings')}. Defaulting to 1.0.")
+            servings = 1.0
+            
         total_nutrition = meal_data.get('total_nutrition', {})
         
         meal_record = {
@@ -676,7 +695,7 @@ def insert_meals_from_json(daily_plan_id: int, meal_plan_json: dict):
             'meal_type': meal_type,
             'meal_order': snack_order if meal_type == 'snack' else 1,
             'recipe_id': int(recipe_id),
-            'servings': round(float(servings), 2),
+            'servings': round(servings, 2),
             'actual_calories': round(total_nutrition.get('calories', 0)),
             'actual_protein': round(total_nutrition.get('protein', 0), 1),
             'actual_carbs': round(total_nutrition.get('carbohydrates', 0), 1),
@@ -693,7 +712,9 @@ def insert_meals_from_json(daily_plan_id: int, meal_plan_json: dict):
         supabase.table('meals').insert(meals_to_insert).execute()
         print(f"✅ Inserted {len(meals_to_insert)} meals")
     else:
-        raise ValueError("No valid meals to insert")
+        # If the LLM failed to generate any valid meals, we should raise an error
+        # to prevent the daily plan from being marked as complete but empty.
+        raise ValueError("No valid meals to insert after parsing agent response.")
 
 
 def get_next_monday():
